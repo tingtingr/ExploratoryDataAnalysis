@@ -55,7 +55,7 @@ totalmdEmission <- tapply(mdEmission$Emissions, mdEmission$year, sum)
 # 1999     2002     2005     2008 
 # 3274.180 2453.916 3091.354 1862.282 
 png('ExploratoryDataAnalysis/plot02.png')
-g<-plot(names(totalmdEmission),totalmdEmission, type = 'l', col = "red", xlab='Year', ylab = 'Total Emissions in MD (tons)',main = 'Total Emissions in MD by Year')
+g<-plot(names(totalmdEmission),totalmdEmission, type = 'l', col = "red", xlab='Year', ylab = 'Total Emissions in Baltimore (tons)',main = 'Total Emissions in Baltimore by Year')
 dev.off()
 
 # Answer: Yes. See plot02.png
@@ -171,6 +171,7 @@ coalEmissionSum <- tapply(coalEmission$Emissions, list(coalEmission$year, coalEm
 
 coalEmissionSum <- melt(coalEmissionSum)
 names(coalEmissionSum) <- c('Year','Type','Emissions')
+
 # > coalEmissionSum
 # Year     Type  Emissions
 # 1 1999 NONPOINT  126.29300
@@ -183,5 +184,101 @@ names(coalEmissionSum) <- c('Year','Type','Emissions')
 # 8 2008    POINT  883.73794
 
 png('ExploratoryDataAnalysis/plot04.png')
-plot(names(coalEmissionSum),coalEmissionSum, type ='l', col='red', xlab = 'Year', ylab = 'Coal Emission Sum', main = 'Coal Emission Sum from 1999 - 2008')
+qplot(Year, Emissions, data=coalEmissionSum, color = Type, geom=c('point','smooth'),main='Coal Emissions from 1999 - 2008')
 dev.off()
+
+# Question 5. How have emissions from motor vehicle sources changed from 1999-2008 in Baltimore City?
+
+#Assumption: Type- ON ROAD is equivalent to motor vehicles
+
+mdMotor <- mdEmission[(type == 'ON-ROAD'),]
+
+# > head(mdMotor,3)
+# fips        SCC Pollutant Emissions    type year
+# 1: 24510 220100123B  PM25-PRI      7.38 ON-ROAD 1999
+# 2: 24510 220100123T  PM25-PRI      2.78 ON-ROAD 1999
+# 3: 24510 220100123X  PM25-PRI     11.76 ON-ROAD 1999
+
+mdMotorEmissionSum <- tapply(mdMotor$Emissions, mdMotor$year, sum)
+# > mdMotorEmissionSum
+# 1999      2002      2005      2008 
+# 346.82000 134.30882 130.43038  88.27546 
+
+png('ExploratoryDataAnalysis/plot05.png')
+plot(names(mdMotorEmissionSum), mdMotorEmissionSum,col='red', type='l', xlab = 'Year', ylab = 'Baltimore Motor Vehicle Emissions', main = 'Baltimore Motor Vehicle Emission from 1999 - 2008')
+dev.off()
+
+
+# Question 6. 
+# Compare emissions from motor vehicle sources in Baltimore City with emissions from motor vehicle sources in Los Angeles County, California (fips == "06037"). 
+# Which city has seen greater changes over time in motor vehicle emissions?
+
+#Get the emission data for 06037, LA
+laEmission <- pm25sum[pm25sum$fips=='06037',]
+
+#Examine the data
+# > head(laEmission,3)
+# fips      SCC Pollutant Emissions  type year
+# 1: 06037 10100501  PM25-PRI     0.031 POINT 1999
+# 2: 06037 10100601  PM25-PRI   382.523 POINT 1999
+# 3: 06037 10100602  PM25-PRI     3.532 POINT 1999
+
+laMotorEmission <- laEmission[(type=='ON-ROAD'),]
+
+# > head(laMotorEmission,3)
+# fips        SCC Pollutant Emissions    type year
+# 1: 06037 2201001110  PM25-PRI      4.93 ON-ROAD 1999
+# 2: 06037 2201001130  PM25-PRI      8.22 ON-ROAD 1999
+# 3: 06037 2201001150  PM25-PRI      4.70 ON-ROAD 1999
+laMotorEmissionSum <- tapply(laMotorEmission$Emissions, laMotorEmission$year, sum)
+laMotorEmissionSum <- cbind(City = 'LA', laMotorEmissionSum)
+colnames(laMotorEmissionSum)[2] = 'Emissions'
+# > laMotorEmissionSum
+
+#       City Emissions         
+# 1999 "LA" "3931.12"         
+# 2002 "LA" "4273.7101979658" 
+# 2005 "LA" "4601.41492591126"
+# 2008 "LA" "4101.321" 
+
+mdMotorEmissionSum <- cbind(City='Baltimore', mdMotorEmissionSum)
+# > mdMotorEmissionSum
+
+#       City        Emissions         
+# 1999 "Baltimore" "346.82"          
+# 2002 "Baltimore" "134.308821199349"
+# 2005 "Baltimore" "130.430379885892"
+# 2008 "Baltimore" "88.275457392443" 
+
+laMotorEmissionSum <- data.table(laMotorEmissionSum)
+mdMotorEmissionSum <- data.table(mdMotorEmissionSum)
+
+laMotorEmissionSum$Emissions <- as.numeric(laMotorEmissionSum$Emissions)
+mdMotorEmissionSum$Emissions <- as.numeric(mdMotorEmissionSum$Emissions)
+#calculate the delta change between the years
+
+#discrete-time derivatives
+change <- function(x){
+  res <- data.table("City" = x$City[1], "1999"= x$Emissions[1]-x$Emissions[1], "2002" = x$Emissions[2]-x$Emissions[1], "2005" = x$Emissions[3]-x$Emissions[2], "2008" = x$Emissions[4]- x$Emissions[3])
+}
+
+laMotorEmissionChange <-change(laMotorEmissionSum)
+mdMotorEmissionChange <- change(mdMotorEmissionSum)
+
+
+cityCompare <- rbind(laMotorEmissionChange,mdMotorEmissionChange)
+cityCompare <- melt(cityCompare)
+names(cityCompare) <- c('City', 'Year','Emissions')
+# City Year Emissions
+# 1:        LA 1999    0.0000
+# 2: Baltimore 1999    0.0000
+# 3:        LA 2002  342.5902
+cityCompare$Year <- as.integer(as.character(cityCompare$Year))
+
+png('ExploratoryDataAnalysis/plot06.png')
+qplot(Year, Emissions, data = cityCompare, color = City, facets = .~ City, geom = c('point','smooth'), ylab = 'Emissions Change from the Previous Year', main = 'Comparison of Changes in Motor Vehicles Emissions b/w Baltimore and LA from 1999 - 2008')+geom_hline(yintercept = 0)
+dev.off()
+# Answers:
+#   Baltimore's motor vehicles emissions had been decreasing. The biggest decrease was between 1999 -2002,
+#    then the decrease slowed down from 2002 - 2005. From 2005 - 2008, the decrease increased from the previous years
+#   LA's motor vehicles emission had an increase from 1999 - 2002, then the increase slowed down from 2002 - 2005. From 2005 - 2008, LA saw a big decrease in emissions.
