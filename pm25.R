@@ -118,3 +118,70 @@ dev.off()
 
 #Question 4. Across the United States, how have emissions from coal combustion-related sources changed from 1999-2008?
 
+#Examine data, noticed the categorization is in 'EI.Sector' 
+
+# dim(pm25)
+# [1] 11717    15
+# > head(pm25,3)
+# SCC Data.Category
+# 1: 10100101         Point
+# 2: 10100102         Point
+# 3: 10100201         Point
+# Short.Name
+# 1:                   Ext Comb /Electric Gen /Anthracite Coal /Pulverized Coal
+# 2: Ext Comb /Electric Gen /Anthracite Coal /Traveling Grate (Overfeed) Stoker
+# 3:       Ext Comb /Electric Gen /Bituminous Coal /Pulverized Coal: Wet Bottom
+# EI.Sector Option.Group Option.Set
+# 1: Fuel Comb - Electric Generation - Coal                        
+# 2: Fuel Comb - Electric Generation - Coal                        
+# 3: Fuel Comb - Electric Generation - Coal                        
+# SCC.Level.One       SCC.Level.Two               SCC.Level.Three
+# 1: External Combustion Boilers Electric Generation               Anthracite Coal
+# 2: External Combustion Boilers Electric Generation               Anthracite Coal
+# 3: External Combustion Boilers Electric Generation Bituminous/Subbituminous Coal
+# SCC.Level.Four Map.To Last.Inventory.Year Created_Date
+# 1:                               Pulverized Coal     NA                  NA             
+# 2:             Traveling Grate (Overfeed) Stoker     NA                  NA             
+# 3: Pulverized Coal: Wet Bottom (Bituminous Coal)     NA                  NA             
+# Revised_Date Usage.Notes
+
+coalnames <- grep(".*Comb.*Coal*",names(table(pm25$EI.Sector)),value = T, ignore.case = T)
+
+# > coalnames
+# [1] "Fuel Comb - Comm/Institutional - Coal"       "Fuel Comb - Electric Generation - Coal"     
+# [3] "Fuel Comb - Industrial Boilers, ICEs - Coal"
+x <- pm25[pm25$EI.Sector == coalnames,]
+
+coalSCC <- unique(x$SCC)
+# > length(coalSCC)
+# [1] 33
+
+coalEmission <- pm25sum[(pm25sum$SCC == coalSCC),]
+# > dim(coalEmission)
+# [1] 403   6
+
+coalEmissionSum <- tapply(coalEmission$Emissions, list(coalEmission$year, coalEmission$type), sum)
+
+# > coalEmissionSum
+# NONPOINT     POINT
+# 1999 126.29300 9580.6910
+# 2002 292.80657 3774.8789
+# 2005 165.12883  486.3100
+# 2008  32.28742  883.7379
+
+coalEmissionSum <- melt(coalEmissionSum)
+names(coalEmissionSum) <- c('Year','Type','Emissions')
+# > coalEmissionSum
+# Year     Type  Emissions
+# 1 1999 NONPOINT  126.29300
+# 2 2002 NONPOINT  292.80657
+# 3 2005 NONPOINT  165.12883
+# 4 2008 NONPOINT   32.28742
+# 5 1999    POINT 9580.69100
+# 6 2002    POINT 3774.87887
+# 7 2005    POINT  486.31000
+# 8 2008    POINT  883.73794
+
+png('ExploratoryDataAnalysis/plot04.png')
+plot(names(coalEmissionSum),coalEmissionSum, type ='l', col='red', xlab = 'Year', ylab = 'Coal Emission Sum', main = 'Coal Emission Sum from 1999 - 2008')
+dev.off()
